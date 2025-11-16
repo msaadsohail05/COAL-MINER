@@ -27,7 +27,6 @@ batY BYTE 5
 BAT_SPEED = 2
 batDX  BYTE 1      ; horizontal velocity  (+1 or -1)
 batDY  BYTE 1      ; vertical velocity    (+1 or -1)
-
 batDir SBYTE 1
 lineBuffer BYTE SCRWIDTH DUP(' ')
 lineTerm BYTE 0
@@ -102,6 +101,8 @@ ClearScreen ENDP
 ; -------------------------
 InitGame PROC
     call ClearScreen
+    mov eax, 1       
+    call SetTextColor
     call Randomize
     mov byte ptr playerX, 40
     mov dword ptr score, 0
@@ -474,15 +475,17 @@ cp_next:
     inc esi
     loop coal_place
     ; Bat
-    mov al, batY
-    cmp al, dl
-    jne skip_bat_place
-    mov al, batX
-    movzx eax, al
-    lea edi, lineBuffer
-    add edi, eax
-    mov byte ptr [edi], 'B'
+mov al, batY
+cmp al, dl
+jne skip_bat_place
+mov al, batX
+movzx eax, al
+lea edi, lineBuffer
+add edi, eax
+mov byte ptr [edi], 'B'
 skip_bat_place:
+
+
     ; Player
     mov al, playerY
     cmp al, dl
