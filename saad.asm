@@ -203,7 +203,7 @@ rocks_upd:
     inc al
     mov rockY[ebx], al
     mov al, rockY[ebx]
-    cmp al, PLAYERROW
+    cmp al, playerY
     jb rskip
     je rcheck_collision
     ; > PLAYERROW
@@ -238,7 +238,7 @@ coal_upd:
     inc al
     mov coalY[ebx], al
     mov al, coalY[ebx]
-    cmp al, PLAYERROW
+    cmp al, playerY
     jb cskip
     je ccheck_collect
     ; > PLAYERROW
@@ -394,7 +394,7 @@ skip_bat_place:
     add edi, eax
     mov byte ptr [edi], 'M'
 skip_player:
-    mov dl, playerY
+    mov dl, 0
     mov dh, bl
     call Gotoxy
     lea edx, lineBuffer
@@ -456,9 +456,9 @@ ReadInput PROC
     cmp al, 0
     jne ri_normal
     ; extended key
-    cmp ah, 48  ; up arrow
+    cmp ah, 48h  ; up arrow
     je ri_up
-    cmp ah, 50  ; down arrow
+    cmp ah, 50h  ; down arrow
     je ri_down
     cmp ah, 4Bh  ; left arrow
     je ri_left
