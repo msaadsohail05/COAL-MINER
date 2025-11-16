@@ -24,12 +24,19 @@ coalY BYTE MAXCOAL DUP(0)
 coalActive BYTE MAXCOAL DUP(0)
 batX BYTE 10
 batY BYTE 5
+BAT_SPEED = 2
+batDX  BYTE 1      ; horizontal velocity  (+1 or -1)
+batDY  BYTE 1      ; vertical velocity    (+1 or -1)
+
 batDir SBYTE 1
 lineBuffer BYTE SCRWIDTH DUP(' ')
 lineTerm BYTE 0
 introStr BYTE "COAL MINER RESCUE - Press any key to start",0
-controlsStr BYTE "Use LEFT/RIGHT arrows to move. Collect 'o' (coal). Avoid '#' (rocks). ESC to quit.",0
+controlsStr BYTE "Use LEFT/RIGHT/UP/DOWN arrows to move. Collect 'o' (coal). Avoid '#' (rocks) and 'B' (bat). ESC to quit.",0
 gameOverStr BYTE "GAME OVER! Press R to restart or ESC to quit.",0
+finalScoreStr BYTE "Final Score: ",0
+finalLivesStr BYTE "Lives Remaining: ",0
+finalLevelStr BYTE "Level Reached: ",0
 scoreLbl BYTE "Score: ",0
 livesLbl BYTE "Lives: ",0
 levelLbl BYTE "Level: ",0
@@ -263,24 +270,116 @@ cno_collect:
 cskip:
     inc ebx
     loop coal_upd
-    ; Bat movement
-    mov al, batX
-    mov bl, batDir
-    add al, bl
-    mov batX, al
-    mov al, batX
-    cmp al, 2
-    jl bat_left_turn
-    mov al, batX
-    cmp al, SCRWIDTH-3
-    jg bat_left_turn2
-    jmp bat_end
-bat_left_turn:
-    mov byte ptr batDir, 1
-    jmp bat_end
-bat_left_turn2:
-    mov byte ptr batDir, -1
-bat_end:
+; -----------------------------------------------------
+; BAT COLLISION WITH PLAYER
+; -----------------------------------------------------
+mov al, batY
+cmp al, playerY
+jne bat_col_end
+
+mov al, batX
+cmp al, playerX
+jne bat_col_end
+
+; ---- HIT! ----
+mov eax, lives
+dec eax
+mov lives, eax
+
+mov eax, score
+cmp eax, 20
+jl bat_score_zero
+sub eax, 20
+jmp bat_score_store
+
+bat_score_zero:
+mov eax, 0
+
+bat_score_store:
+mov score, eax
+
+; optional bat reset
+mov byte ptr batX, 10
+mov byte ptr batY, 5
+
+bat_col_end:
+
+; -----------------------------------------------------
+;  BAT – FULL DIAGONAL RANDOM MOVEMENT
+; -----------------------------------------------------
+
+; Randomly change direction sometimes
+call Random32
+and eax, 0Fh        ; 1-in-16 chance
+cmp eax, 0
+jne bat_keep_dir
+
+; Flip horizontal direction
+mov al, batDX
+neg al
+mov batDX, al
+
+; Flip vertical direction
+mov al, batDY
+neg al
+mov batDY, al
+
+bat_keep_dir:
+
+; -----------------------------------------------------
+; MOVE HORIZONTALLY
+; -----------------------------------------------------
+mov al, batX
+add al, batDX       ; new X = X + DX
+
+; check boundary
+cmp al, 1
+jl bat_bounce_left
+
+cmp al, SCRWIDTH-3
+jg bat_bounce_right
+
+mov batX, al
+jmp bat_x_done
+
+bat_bounce_left:
+mov byte ptr batDX, 1
+mov batX, 1
+jmp bat_x_done
+
+bat_bounce_right:
+mov byte ptr batDX, -1
+mov batX, SCRWIDTH-3
+
+bat_x_done:
+
+; -----------------------------------------------------
+; MOVE VERTICALLY
+; -----------------------------------------------------
+mov al, batY
+add al, batDY       ; new Y = Y + DY
+
+cmp al, 2
+jl bat_bounce_top
+
+cmp al, SCRHEIGHT-3
+jg bat_bounce_bottom
+
+mov batY, al
+jmp bat_y_done
+
+bat_bounce_top:
+mov byte ptr batDY, 1
+mov batY, 2
+jmp bat_y_done
+
+bat_bounce_bottom:
+mov byte ptr batDY, -1
+mov batY, SCRHEIGHT-3
+
+bat_y_done:
+
+
     pop edi
     pop esi
     pop edx
@@ -535,9 +634,39 @@ gs_skip2:
     jmp main_loop
 game_over:
     call Clrscr
+
+    ; --- PRINT GAME OVER LINE ---
     mov edx, OFFSET gameOverStr
     call WriteString
     call Crlf
+
+    ; --- PRINT FINAL SCORE ---
+    mov edx, OFFSET finalScoreStr
+    call WriteString
+    mov eax, score
+    call IntToDec
+    mov edx, OFFSET lineBuffer
+    call WriteString
+    call Crlf
+
+    ; --- PRINT FINAL LIVES ---
+    mov edx, OFFSET finalLivesStr
+    call WriteString
+    mov eax, lives
+    call IntToDec
+    mov edx, OFFSET lineBuffer
+    call WriteString
+    call Crlf
+
+    ; --- PRINT FINAL LEVEL ---
+    mov edx, OFFSET finalLevelStr
+    call WriteString
+    mov eax, level
+    call IntToDec
+    mov edx, OFFSET lineBuffer
+    call WriteString
+    call Crlf
+
 go_wait:
     call WaitForKey
     cmp al, 'r'
@@ -547,6 +676,7 @@ go_wait:
     cmp al, 1Bh
     je exit_game
     jmp go_wait
+
 restart_game:
     call InitGame
     jmp main_loop
